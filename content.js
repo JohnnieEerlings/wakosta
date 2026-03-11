@@ -15,9 +15,9 @@
   const PANEL_ID = "wakosta-panel";
 
   const STORES = [
-    { id: "be", label: "🇧🇪 Belgium", currency: "€", domain: "www.ikea.com/be/nl" },
-    { id: "nl", label: "🇳🇱 Netherlands", currency: "€", domain: "www.ikea.com/nl/nl" },
-    { id: "de", label: "🇩🇪 Germany", currency: "€", domain: "www.ikea.com/de/de" },
+    { id: "be", label: "🇧🇪 Belgium", currency: "€", domain: "www.ikea.be" },
+    { id: "nl", label: "🇳🇱 Netherlands", currency: "€", domain: "www.ikea.nl" },
+    { id: "de", label: "🇩🇪 Germany", currency: "€", domain: "www.ikea.de" },
   ];
 
   // IKEA's public pip (product information page) price API.
@@ -112,40 +112,67 @@
 
   function renderTable(panel, rows) {
     const body = panel.querySelector(".wakosta-body");
+    body.textContent = "";
 
     if (rows.every((r) => r.error)) {
-      body.innerHTML = `<p class="wakosta-error">Could not fetch prices. Make sure you are on a product page.</p>`;
+      const p = document.createElement("p");
+      p.className = "wakosta-error";
+      p.textContent =
+        "Could not fetch prices. Make sure you are on a product page.";
+      body.appendChild(p);
       return;
     }
 
-    const tableRows = rows
-      .map((row) => {
-        if (row.error) {
-          return `<tr>
-            <td>${row.label}</td>
-            <td colspan="2" class="wakosta-error-cell">N/A</td>
-          </tr>`;
-        }
-        return `<tr>
-          <td>${row.label}</td>
-          <td class="wakosta-price">${row.currency}&nbsp;${row.price}</td>
-          <td><a href="${row.productUrl}" target="_blank" rel="noopener noreferrer" class="wakosta-link">View</a></td>
-        </tr>`;
-      })
-      .join("");
+    // Build table using DOM APIs to avoid DOM XSS via innerHTML.
+    const table = document.createElement("table");
+    table.className = "wakosta-table";
 
-    body.innerHTML = `
-      <table class="wakosta-table">
-        <thead>
-          <tr>
-            <th>Store</th>
-            <th>Price</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>${tableRows}</tbody>
-      </table>
-    `;
+    const thead = document.createElement("thead");
+    const headerRow = document.createElement("tr");
+    ["Store", "Price", ""].forEach((text) => {
+      const th = document.createElement("th");
+      th.textContent = text;
+      headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+    rows.forEach((row) => {
+      const tr = document.createElement("tr");
+
+      const tdLabel = document.createElement("td");
+      tdLabel.textContent = row.label;
+      tr.appendChild(tdLabel);
+
+      if (row.error) {
+        const tdError = document.createElement("td");
+        tdError.colSpan = 2;
+        tdError.className = "wakosta-error-cell";
+        tdError.textContent = "N/A";
+        tr.appendChild(tdError);
+      } else {
+        const tdPrice = document.createElement("td");
+        tdPrice.className = "wakosta-price";
+        tdPrice.textContent = `${row.currency}\u00A0${row.price}`;
+        tr.appendChild(tdPrice);
+
+        const tdLink = document.createElement("td");
+        const link = document.createElement("a");
+        link.className = "wakosta-link";
+        link.textContent = "View";
+        link.href = row.productUrl;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        tdLink.appendChild(link);
+        tr.appendChild(tdLink);
+      }
+
+      tbody.appendChild(tr);
+    });
+
+    table.appendChild(tbody);
+    body.appendChild(table);
   }
 
   // ── Main ───────────────────────────────────────────────────────────────────
@@ -162,7 +189,7 @@
     const results = await Promise.all(
       STORES.map(async (store) => {
         const apiUrl = priceApiUrl(store.domain, productId);
-        const productUrl = `https://${store.domain}/products/${productId}/`;
+        const productUrl = `https://${store.domain}/search/?q=${productId}`;
         try {
           const data = await bgFetch(apiUrl);
           const price = parsePrice(data);

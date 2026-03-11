@@ -3,14 +3,12 @@
   "name": "WÅKOSTÅ",
   "version": "1.0.0",
   "description": "Compare IKEA product prices across Belgium, Netherlands, and Germany.",
-  "permissions": [
-    "storage"
-  ],
+  "permissions": [],
   "host_permissions": [
     "*://*.ikea.com/*",
-    "*://*.ikea.be/*",
-    "*://*.ikea.nl/*",
-    "*://*.ikea.de/*"
+    "*://www.ikea.be/*",
+    "*://www.ikea.nl/*",
+    "*://www.ikea.de/*"
   ],
   "background": {
     "service_worker": "background.js"
