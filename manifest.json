@@ -15,14 +15,24 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://*.ikea.com/*"],
+      "matches": [
+        "*://*.ikea.com/*",
+        "*://*.ikea.be/*",
+        "*://*.ikea.nl/*",
+        "*://*.ikea.de/*"
+      ],
       "js": ["content.js"],
       "css": ["styles.css"],
       "run_at": "document_idle"
     }
   ],
   "action": {
-    "default_title": "WÅKOSTÅ – IKEA Price Comparator"
+    "default_title": "WÅKOSTÅ – IKEA Price Comparator",
+    "default_icon": "icon.png"
   },
-  "icons": {}
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  }
 }
