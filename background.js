@@ -8,7 +8,7 @@
  */
 
 // Allowed hosts for price API fetches (must match the STORES in content.js).
-const ALLOWED_HOSTS = new Set(["www.ikea.be", "www.ikea.nl", "www.ikea.de"]);
+const ALLOWED_HOSTS = new Set(["www.ikea.be", "www.ikea.nl", "www.ikea.de", "www.ikea.com"]);
 
 /**
  * Validate that a URL targets one of the allowed IKEA store domains and
@@ -38,14 +38,14 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   fetch(url, {
     headers: {
-      Accept: "application/json",
+      Accept: "text/html,application/json",
     },
   })
     .then((response) => {
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
-      return response.json();
+      return response.text();
     })
     .then((data) => sendResponse({ ok: true, data }))
     .catch((error) => sendResponse({ ok: false, error: error.message }));
