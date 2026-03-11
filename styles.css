@@ -3,14 +3,41 @@
 .wakosta-inline-panel {
   display: inline-flex;
   align-items: center;
-  flex-wrap: wrap; /* Re-enable wrapping now that we embrace the multi-line sale tag look */
+  flex-wrap: wrap;
   gap: 12px;
   margin-left: 8px;
-  margin-top: 4px; /* Give it space if it breaks */
+  margin-top: 4px;
   margin-bottom: 4px;
   font-family: "Noto Sans", "Helvetica Neue", Arial, sans-serif;
   font-size: 14px;
 }
+
+/* Compact version for list/category pages */
+.wakosta-inline-panel.wakosta-list-view {
+  margin-left: 0;
+  margin-top: 6px;
+  gap: 6px;
+  font-size: 12px;
+  display: flex;
+}
+
+.wakosta-list-view .wakosta-inline-link {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 4px;
+}
+
+.wakosta-list-view .wakosta-flag {
+  font-size: 13px;
+}
+
+.wakosta-list-view .wakosta-price-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
 
 .wakosta-inline-store {
   display: flex;

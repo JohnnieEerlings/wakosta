@@ -14,7 +14,7 @@
 
   const API_TIMEOUT = 5000;
 
-  const INLINE_PANEL_ID = "wakosta-inline-panel";
+  const INLINE_PANEL_CLASS = "wakosta-inline-panel";
 
   const STORES = [
     { id: "be", label: "🇧🇪", currency: "€", domain: "www.ikea.com/be/nl" },
@@ -28,8 +28,9 @@
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
-  function extractProductId() {
-    const match = window.location.href.match(/(\d{8})(?:[/?#]|$)/);
+  function extractProductId(url) {
+    const href = url || window.location.href;
+    const match = href.match(/(\d{8})(?:[/?#]|$)/);
     return match ? match[1] : null;
   }
 
@@ -61,59 +62,53 @@
   }
 
   function parsePrice(htmlStr) {
-    const pipTempMatch = htmlStr.match(/<span class="pip-temp-price__integer">(\d+)<\/span>[^<]*<span class="pip-temp-price__decimal"><span class="pip-temp-price__separator">[^<]*<\/span>(\d+)<\/span>/);
-    if (pipTempMatch) return parseFloat(`${pipTempMatch[1]}.${pipTempMatch[2]}`);
+    if (!htmlStr) return null;
 
-    const pipfMatch = htmlStr.match(/<span class="pipf-price__integer">(\d+)<\/span>[^<]*<span class="pipf-price__decimal"><span class="pipf-price__separator">[^<]*<\/span>(\d+)<\/span>/);
-    if (pipfMatch) return parseFloat(`${pipfMatch[1]}.${pipfMatch[2]}`);
-
-    const pipcomMatch = htmlStr.match(/<span class="pipcom-price__integer">(\d+)<\/span>[^<]*<span class="pipcom-price__decimal"><span class="pipcom-price__separator">[^<]*<\/span>(\d+)<\/span>/);
-    if (pipcomMatch) return parseFloat(`${pipcomMatch[1]}.${pipcomMatch[2]}`);
-
-    const fallbackMatch = htmlStr.match(/data-price="([^"]+)"/);
-    if (fallbackMatch) return parseFloat(fallbackMatch[1]);
-
-    const genericMatch = htmlStr.match(/content="(\d+\.\d+)"\s*itemprop="price"/);
-    if (genericMatch) return parseFloat(genericMatch[1]);
-
-    return null;
-  }
-
-  function waitForElement(selectors, timeout = 5000) {
-    return new Promise((resolve) => {
-      for (const sel of selectors) {
-        const el = document.querySelector(sel);
-        if (el) return resolve(el);
-      }
-
-      const observer = new MutationObserver((mutations, obs) => {
-        for (const sel of selectors) {
-          const el = document.querySelector(sel);
-          if (el) {
-            obs.disconnect();
-            resolve(el);
-            return;
+    // 1. Best: JSON-LD structured data – most reliable, canonical main product price
+    const jsonLdBlocks = htmlStr.matchAll(/<script[^>]+type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi);
+    for (const block of jsonLdBlocks) {
+      try {
+        const data = JSON.parse(block[1]);
+        // Handle both single object and array of objects
+        const items = Array.isArray(data) ? data : [data];
+        for (const item of items) {
+          const product = item['@type'] === 'Product' ? item : (item['@graph'] || []).find(n => n['@type'] === 'Product');
+          if (product && product.offers) {
+            const price = parseFloat(product.offers.price || product.offers.lowPrice);
+            if (!isNaN(price) && price > 0) return price;
           }
         }
-      });
+      } catch (e) { /* ignore malformed JSON */ }
+    }
 
-      observer.observe(document.body, { childList: true, subtree: true });
+    // 2. itemprop price (Open Graph / microdata) – usually the canonical price too
+    const itempropMatch = htmlStr.match(/<(?:meta|span)[^>]+itemprop="price"[^>]*content="([\d.]+)"/);
+    if (itempropMatch) return parseFloat(itempropMatch[1]);
 
-      setTimeout(() => {
-        observer.disconnect();
-        resolve(null);
-      }, timeout);
-    });
+    // 3. IKEA pipcom-price (detail pages) – look for current-price context
+    const currentPriceCtx = htmlStr.match(/pipcom-price-module__current-price[\s\S]{0,500}?pipcom-price__integer">(\d+)<\/span>[\s\S]{0,100}?pipcom-price__separator[^<]*<\/span>(\d+)<\/span>/);
+    if (currentPriceCtx) return parseFloat(`${currentPriceCtx[1]}.${currentPriceCtx[2]}`);
+
+    // 4. Broader pipcom-price fallback (first match)
+    const pipcomMatch = htmlStr.match(/pipcom-price__integer">(\d+)<\/span>[\s\S]{0,100}?pipcom-price__separator[^<]*<\/span>(\d+)<\/span>/);
+    if (pipcomMatch) return parseFloat(`${pipcomMatch[1]}.${pipcomMatch[2]}`);
+
+    // 5. pip-temp-price (older IKEA page format)
+    const pipTempMatch = htmlStr.match(/pip-temp-price__integer">(\d+)<\/span>[\s\S]{0,100}?pip-temp-price__separator[^<]*<\/span>(\d+)<\/span>/);
+    if (pipTempMatch) return parseFloat(`${pipTempMatch[1]}.${pipTempMatch[2]}`);
+
+    // 6. plp-price (list view format)
+    const plpMatch = htmlStr.match(/plp-price__integer">(\d+)<\/span>[\s\S]{0,100}?plp-price__separator[^<]*<\/span>(\d+)<\/span>/);
+    if (plpMatch) return parseFloat(`${plpMatch[1]}.${plpMatch[2]}`);
+
+    return null;
   }
 
   // ── UI ─────────────────────────────────────────────────────────────────────
 
   function removeExistingPanels() {
-    const existingFloating = document.getElementById('wakosta-panel'); // We didn't keep the constant here earlier, so just use string or add it back
-    if (existingFloating) existingFloating.remove();
-    
-    const existingInline = document.getElementById(INLINE_PANEL_ID);
-    if (existingInline) existingInline.remove();
+    document.querySelectorAll(`.${INLINE_PANEL_CLASS}`).forEach(panel => panel.remove());
+    document.querySelectorAll('.wakosta-price-icon').forEach(icon => icon.remove());
   }
 
   function resetPriceColor(container) {
@@ -161,92 +156,52 @@
       check.innerHTML = sadIconSVG;
     }
 
-    // User requested to place the icon inside the `.pipcom-price-module__primary-currency-price-energy-class` wrapper
-    const energyWrapper = container.querySelector('.pipcom-price-module__primary-currency-price-energy-class') || 
-                          container.closest('.pipcom-price-module__primary-currency-price') || 
-                          container;
+    // Place icon inside the energy-class wrapper (both pipcom- for detail pages and plp- for list pages)
+    const ENERGY_CLASSES = [
+      '.pipcom-price-module__primary-currency-price-energy-class',
+      '.plp-price-module__primary-currency-price-energy-class',
+    ];
     
-    // If we found the specific wrapper, append there, else fallback
-    if (energyWrapper.classList.contains('pipcom-price-module__primary-currency-price-energy-class')) {
-      energyWrapper.appendChild(check);
-    } else {
-      container.appendChild(check);
-    }
+    const energyWrapper = ENERGY_CLASSES.reduce(
+      (found, sel) => found || container.querySelector(sel) || container.closest(sel),
+      null
+    ) || container;
+
+    energyWrapper.appendChild(check);
   }
 
-  async function renderInline(productId, currentStoreId) {
-    console.log("WAKOSTA: renderInline called for product", productId, "store", currentStoreId);
-    const priceContainer = await waitForElement([
-      '.pipcom-price-module__primary-currency-price',
-      '.pip-price-package',
-      '.pipf-price-module',
-      '.pip-temp-price-module',
-      '.pipf-price-package__price-module-wrapper',
-      '.pip-temp-price-package'
-    ]);
+  async function fetchAndRenderPrices(productId, currentStoreId, priceContainer, isListView = false) {
+    // Determine the current store object
+    const currentStoreConfig = STORES.find(s => s.id === currentStoreId);
+    if (!currentStoreConfig) return;
 
-    if (!priceContainer) {
-      console.log("WAKOSTA: Price container not found.");
+    // Build array of all store fetches
+    // We fetch current store too, to get its parsed numeric price for comparison
+    const fetchPromises = STORES.map(async (store) => {
+      const url = productPageUrl(store.domain, productId);
+      try {
+        const html = await bgFetch(url);
+        const price = parsePrice(html);
+        return { ...store, price: price, productUrl: url, error: price === null };
+      } catch (err) {
+        return { ...store, price: null, productUrl: url, error: true };
+      }
+    });
+
+    const results = await Promise.all(fetchPromises);
+    
+    // Guard against double-runs using a data attribute (not class, to avoid self-blocking)
+    if (priceContainer.dataset.wakosta) {
       return;
     }
-    console.log("WAKOSTA: Price container found.");
-
-    if (document.getElementById(INLINE_PANEL_ID)) {
-      console.log("WAKOSTA: Panel already exists, returning.");
-      return;
-    }
-    
-    // reset styling from previous runs if any
-    resetPriceColor(priceContainer);
-
-    const inlinePanel = document.createElement('div');
-    inlinePanel.id = INLINE_PANEL_ID;
-    inlinePanel.className = 'wakosta-inline-panel';
-    inlinePanel.innerHTML = '<span class="wakosta-loading">Prijzen vergelijken…</span>';
-
-    // Depending on the targeted container, we may need different styling.
-    // If it's the more specific pipcom wrapper the user found, we might just append it.
-    if (priceContainer.classList.contains('pipcom-price-module__primary-currency-price')) {
-      priceContainer.style.display = 'flex';
-      priceContainer.style.alignItems = 'center';
-      priceContainer.style.flexWrap = 'wrap';
-      priceContainer.style.gap = '12px';
-    } else {
-      // Fallback styling for the generic outer wrappers
-      priceContainer.style.display = 'flex';
-      priceContainer.style.alignItems = 'center';
-      priceContainer.style.flexWrap = 'wrap';
-      priceContainer.style.gap = '12px';
-    }
-    
-    // Inject at the end of the container (after energy class if it exists)
-    priceContainer.appendChild(inlinePanel);
-
-    // Fetch prices asynchronously so it doesn't block UI interactions
-    console.log("WAKOSTA: Triggering fetchAndRenderPrices...");
-    fetchAndRenderPrices(productId, currentStoreId, inlinePanel, priceContainer);
-  }
-  
-  async function fetchAndRenderPrices(productId, currentStoreId, inlinePanel, priceContainer) {
-    const results = await Promise.all(
-      STORES.map(async (store) => {
-        const pageUrl = productPageUrl(store.domain, productId);
-        try {
-          const html = await bgFetch(pageUrl);
-          const price = parsePrice(html);
-          if (price === null) throw new Error("Price not found");
-          return { ...store, price, productUrl: pageUrl };
-        } catch (err) {
-          return { ...store, error: err.message, productUrl: pageUrl };
-        }
-      })
-    );
+    priceContainer.dataset.wakosta = 'loading';
 
     const currentStore = results.find(r => r.id === currentStoreId);
     const otherStores = results.filter(r => r.id !== currentStoreId);
 
-    // Clear loading text
-    inlinePanel.innerHTML = '';
+    // Create the inline panel
+    const inlinePanel = document.createElement('div');
+    inlinePanel.className = INLINE_PANEL_CLASS + (isListView ? ' wakosta-list-view' : '');
     
     otherStores.forEach(store => {
       const el = document.createElement('div');
@@ -285,26 +240,89 @@
         appendPriceIcon(priceContainer, 'worse');
       }
     }
+    priceContainer.dataset.wakosta = 'done';
+    priceContainer.appendChild(inlinePanel);
   }
 
   // ── Main ───────────────────────────────────────────────────────────────────
 
-  async function run() {
-    console.log("WAKOSTA: run() triggered on", window.location.href);
-    const productId = extractProductId();
+  // Set to keep track of processed elements to avoid duplicate injections
+  const processedItems = new Set();
+
+  function processProductItem(itemEl, currentStoreId) {
+    // Avoid double processing
+    if (processedItems.has(itemEl)) return;
+    
+    // Try to get product ID from data attributes or href
+    let productId = itemEl.getAttribute('data-product-number');
+    
     if (!productId) {
-      console.log("WAKOSTA: Not a product page, exiting.");
-      return; 
+      const link = itemEl.querySelector('a[href*="/p/"]');
+      if (link) {
+        productId = extractProductId(link.href);
+      }
     }
 
-    const currentStoreId = getCurrentStoreId();
-    console.log("WAKOSTA: Current store detected as:", currentStoreId);
-    if (currentStoreId) {
-      // Doesn't use await so that the observer initialization can continue and not stall
-      renderInline(productId, currentStoreId);
-    } else {
-      console.log("WAKOSTA: Not a supported store domain.");
+    // List view items often have an "s" prefix for spr items (e.g. s89424468). Clean it up.
+    if (productId && productId.startsWith('s')) {
+       productId = productId.substring(1);
     }
+
+    if (!productId || productId.length < 5) return; // Basic validation
+
+    // Find the price container within this item (plp- prefix for list views)
+    const priceContainer = itemEl.querySelector(
+      '.plp-price-module__price, .plp-price-module__current-price, ' +
+      '.pip-temp-price-package__main-price, .pip-price-module__price, ' +
+      '.pipf-price-module, .pipcom-price-module__primary-currency-price, .pip-price-package'
+    );
+    
+    if (priceContainer && !priceContainer.dataset.wakosta) {
+      processedItems.add(itemEl);
+      fetchAndRenderPrices(productId, currentStoreId, priceContainer, true /* isListView */);
+    }
+  }
+
+  function processMainProductPage(currentStoreId) {
+    const productId = extractProductId(window.location.href);
+    if (!productId) return;
+
+    // Try to find the energy-class wrapper first (ideal injection point for detail pages)
+    const energyWrapper = document.querySelector('.pipcom-price-module__primary-currency-price-energy-class');
+    const priceContainer = energyWrapper || document.querySelector(
+      '.pip-temp-price-package__main-price, .pip-price-module__price, .pip-temp-price-module__price, .pipf-price-module, .pipf-price-package__price-module-wrapper, .pipcom-price-module__primary-currency-price'
+    );
+    
+    if (priceContainer && !priceContainer.dataset.wakosta) {
+      fetchAndRenderPrices(productId, currentStoreId, priceContainer);
+    }
+  }
+
+  function run() {
+    console.log("[Wakosta] Content script execution started.");
+    const currentStoreId = getCurrentStoreId();
+    if (!currentStoreId) {
+      console.log("[Wakosta] Niet op een ondersteunde IKEA winkelpagina (.be, .nl, .de). Script stopt.");
+      return;
+    }
+
+    // 1. Process main product page if we are on one
+    processMainProductPage(currentStoreId);
+
+    // 2. Process list view items continuously via MutationObserver
+    // NOTE: Only use specific card-level classes – NOT [data-product-number] which
+    // also matches color swatches and other sub-elements with wrong product IDs.
+    const LIST_SELECTOR = '.plp-fragment-wrapper, .plp-product-compact, .pub__carousel-slide';
+
+    const listObserver = new MutationObserver(() => {
+      document.querySelectorAll(LIST_SELECTOR).forEach(item => processProductItem(item, currentStoreId));
+      processMainProductPage(currentStoreId);
+    });
+
+    listObserver.observe(document.body, { childList: true, subtree: true });
+    
+    // Initial scan
+    document.querySelectorAll(LIST_SELECTOR).forEach(item => processProductItem(item, currentStoreId));
   }
 
   // Expose run globally so background script can re-trigger on pushState navigations
