@@ -1,0 +1,154 @@
+/* ── WÅKOSTÅ – Floating Price Comparison Panel ───────────────────────────── */
+
+#wakosta-panel {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2147483647;
+
+  width: 320px;
+  max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+
+  background: #ffffff;
+  border: 3px solid #0058a3; /* IKEA blue */
+  border-radius: 6px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25);
+
+  font-family: "Noto Sans", "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  color: #111111;
+
+  /* Smooth entrance */
+  animation: wakosta-slide-in 0.25s ease-out;
+}
+
+@keyframes wakosta-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+
+.wakosta-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  background: #ffdb00; /* IKEA yellow */
+  padding: 10px 14px;
+  border-bottom: 2px solid #0058a3;
+  border-radius: 3px 3px 0 0;
+}
+
+.wakosta-logo {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #0058a3;
+}
+
+.wakosta-close {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  color: #0058a3;
+  padding: 0 4px;
+  border-radius: 3px;
+  transition: background 0.15s;
+}
+
+.wakosta-close:hover,
+.wakosta-close:focus {
+  background: rgba(0, 88, 163, 0.12);
+  outline: 2px solid #0058a3;
+}
+
+/* ── Body ───────────────────────────────────────────────────────────────── */
+
+.wakosta-body {
+  padding: 12px 14px;
+}
+
+.wakosta-loading {
+  margin: 0;
+  color: #555555;
+  font-style: italic;
+}
+
+.wakosta-error {
+  margin: 0;
+  color: #c8001a;
+}
+
+/* ── Table ──────────────────────────────────────────────────────────────── */
+
+.wakosta-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.wakosta-table th,
+.wakosta-table td {
+  padding: 7px 8px;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.wakosta-table thead th {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #555555;
+  border-bottom: 2px solid #0058a3;
+}
+
+.wakosta-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.wakosta-table tbody tr:hover {
+  background: #f5f8fc;
+}
+
+.wakosta-price {
+  font-weight: 700;
+  color: #0058a3;
+  white-space: nowrap;
+}
+
+.wakosta-error-cell {
+  color: #c8001a;
+  font-style: italic;
+}
+
+/* ── Link ───────────────────────────────────────────────────────────────── */
+
+.wakosta-link {
+  display: inline-block;
+  padding: 3px 10px;
+  background: #0058a3;
+  color: #ffffff;
+  text-decoration: none;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.wakosta-link:hover,
+.wakosta-link:focus {
+  background: #004f93;
+  outline: 2px solid #ffdb00;
+}
