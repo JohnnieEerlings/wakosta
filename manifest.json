@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "WÅKOSTÅ",
+  "version": "1.0.0",
+  "description": "Compare IKEA product prices across Belgium, Netherlands, and Germany.",
+  "permissions": [],
+  "host_permissions": [
+    "*://*.ikea.com/*",
+    "*://www.ikea.be/*",
+    "*://www.ikea.nl/*",
+    "*://www.ikea.de/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.ikea.com/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "WÅKOSTÅ – IKEA Price Comparator"
+  },
+  "icons": {}
+}
