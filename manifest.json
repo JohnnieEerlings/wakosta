@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "WÅKOSTÅ",
-  "version": "1.0.0",
-  "description": "Compare IKEA product prices across Belgium, Netherlands, and Germany.",
+  "name": "Wåkostå (Wakosta) voor IKEA BE/NL/DE prijzen",
+  "version": "1.0.1",
+  "description": "Vergelijk IKEA prijzen in BE, NL en DE. Ontdek direct met Wakosta (Wåkostå) of je meubels over de grens goedkoper zijn!",
   "permissions": [],
   "host_permissions": [
     "*://*.ikea.com/*",
@@ -27,7 +27,7 @@
     }
   ],
   "action": {
-    "default_title": "WÅKOSTÅ – IKEA Price Comparator",
+    "default_title": "Wåkostå (Wakosta) Prijsvergelijker",
     "default_icon": "icon.png"
   },
   "icons": {
